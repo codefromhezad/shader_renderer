@@ -26,6 +26,7 @@
         <script>
             $( function() {
 
+                // Starting the renderer
                 window.renderer = new ShaderRenderer({
                     canvas_id: 'main-screen', 
                     width: 600, 
@@ -34,14 +35,24 @@
                     last_update: "20170309"
                 });
 
+                // Declaring uniforms (GL variables that can evolve in real-time)
                 renderer.registerUniform('isMouseOver', 'f', 0.0);
 
+                // Declaring macros (Values replaced as-is at compile time (like macros))
+                renderer.registerMacro('default_margin', '50.0');
+
+                // Quick Jquery listener to show how to set uniforms in real-time
                 var mouse_is_inside = 0;
 
                 $(document).on('mouseenter mouseleave', '#main-screen', function (ev) {
                     mouse_is_inside = ev.type === 'mouseenter';
                 });
 
+                // Running the shader 
+                // > Loads the fragment file.
+                // > Parses macros.
+                // > Compiles the resulting shader
+                // > Renders the scene.
                 renderer.run(function() { 
                     renderer.setUniform('isMouseOver', mouse_is_inside);
                 });

@@ -64,7 +64,7 @@ var ShaderRenderer = function(settings) {
 	 * tags in a GLSL source code. It's visible in shaders/fragment.glsl :
 	 * - @var(var_name) will replace the statement with a value from the next object :
 	 */
-	this.custom_shader_variables = {
+	this.custom_macro_vars = {
 		
 	};
 
@@ -117,6 +117,10 @@ var ShaderRenderer = function(settings) {
 		this.uniforms['u_'+uniformName].value = uniformValue;
 	}
 
+	this.registerMacro = function(varName, varValue) {
+		this.custom_macro_vars[varName] = varValue;
+	}
+
 	this.parseShader = function(shader_code, done_callback, recursion_level) {
 
 		if( recursion_level === undefined ) {
@@ -129,19 +133,19 @@ var ShaderRenderer = function(settings) {
 		}
 
 		/* Parse @var directive */
-		var var_match = shader_code.match(/[^\\]\@var\s*\(\s*([^)]+)\s*\)/i);
+		var var_match = shader_code.match(/\@var\s*\(\s*([^)]+)\s*\)/i);
 		if( var_match ) {
 			var directive_length = var_match[0].length;
 			var directive_var_name = var_match[1];
 			var directive_index = var_match.index;
 
-			if( this.custom_shader_variables[directive_var_name] === undefined ) {
+			if( this.custom_macro_vars[directive_var_name] === undefined ) {
 				console.error('Shader file is using an unregistered template variable ('+directive_var_name+')');
 				return;
 			}
 			
 			shader_code = shader_code.substring(0, directive_index) + 
-				this.custom_shader_variables[directive_var_name] + 
+				this.custom_macro_vars[directive_var_name] + 
 				shader_code.substring(directive_index + directive_length);
 
 			this.parseShader(shader_code, done_callback, recursion_level + 1);
@@ -183,7 +187,7 @@ var ShaderRenderer = function(settings) {
 		var that = this;
 
 		this.compile();
-
+		
 		if( stepCallback !== false ) {
 			function step() {
 				that.shaderMaterial.uniforms.u_t.value += 0.01;
