@@ -132,12 +132,12 @@ var ShaderRenderer = function(settings) {
 			return;
 		}
 
-		/* Parse @var directive */
-		var var_match = shader_code.match(/\@var\s*\(\s*([^)]+)\s*\)/i);
-		if( var_match ) {
-			var directive_length = var_match[0].length;
-			var directive_var_name = var_match[1];
-			var directive_index = var_match.index;
+		/* Parse @macro directive */
+		var macro_match = shader_code.match(/\@macro\s*\(\s*([^)]+)\s*\)/i);
+		if( macro_match ) {
+			var directive_length = macro_match[0].length;
+			var directive_var_name = macro_match[1];
+			var directive_index = macro_match.index;
 
 			if( this.custom_macro_vars[directive_var_name] === undefined ) {
 				console.error('Shader file is using an unregistered template variable ('+directive_var_name+')');

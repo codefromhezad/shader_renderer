@@ -7,7 +7,7 @@ uniform int     u_isMouseOver;
 
 
 /* SHADER FRONTEND / PARSED CONSTANTS */
-float default_margin = @var(default_margin);
+float default_margin = @macro(default_margin);
 
 
 /* ENTRY POINT */
