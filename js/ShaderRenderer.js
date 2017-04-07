@@ -117,8 +117,8 @@ var ShaderRenderer = function(settings) {
 		this.uniforms['u_'+uniformName].value = uniformValue;
 	}
 
-	this.registerMacro = function(varName, varValue) {
-		this.custom_macro_vars[varName] = varValue;
+	this.registerMacro = function(macroName, macroValue) {
+		this.custom_macro_vars[macroName] = macroValue;
 	}
 
 	this.parseShader = function(shader_code, done_callback, recursion_level) {

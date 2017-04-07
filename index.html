@@ -35,18 +35,8 @@
                     last_update: "20170407"
                 });
 
-                // Declaring uniforms (GL variables that can evolve in real-time)
-                renderer.registerUniform('isMouseOver', 'f', 0.0);
-
                 // Declaring macros (Values replaced as-is at compile time (like macros))
-                renderer.registerMacro('default_margin', '50.0');
-
-                // Quick Jquery listener to show how to set uniforms in real-time
-                var mouse_is_inside = 0;
-
-                $(document).on('mouseenter mouseleave', '#main-screen', function (ev) {
-                    mouse_is_inside = ev.type === 'mouseenter';
-                });
+                renderer.registerMacro('MAX_SCENE_ENTITIES', 50);
 
                 // Running the shader 
                 // > Loads the fragment file.
@@ -54,7 +44,7 @@
                 // > Compiles the resulting shader
                 // > Renders the scene.
                 renderer.run(function() { 
-                    renderer.setUniform('isMouseOver', mouse_is_inside);
+                    
                 });
             });
         </script>

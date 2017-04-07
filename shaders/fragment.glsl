@@ -3,32 +3,78 @@
 
 uniform vec2    u_resolution;
 uniform float   u_t;
-uniform int     u_isMouseOver;
+uniform int     ;
 
 
-/* SHADER FRONTEND / PARSED CONSTANTS */
-float default_margin = @macro(default_margin);
+
+
+/* SHADER CONSTANTS / LOOP INDICES */
+
+#define MAX_SCENE_ENTITIES @macro(MAX_SCENE_ENTITIES)
+
+
+
+/* GEOMETRIES IDENTIFIERS */
+
+int GeometrySphere = 1;
+
+
+
+
+/* BASE STRUCTURES / CLASSES */
+
+struct Ray {
+    vec3 position;
+    vec3 direction;
+};
+
+struct Entity {
+    /* Supported geometries: 
+     * - GeometrySphere (=1) => Regular sphere
+     */
+    int geometry; 
+
+    /* General parameters*/
+    vec3 position;
+
+    /* Sphere parameters */
+    float radius;
+};
+
+struct Intersection {
+    int intersected;
+    vec3 position;
+    float ray_t;
+
+    Entity entity;
+};
+
+
+
+
+/* SCENE DATA REPOSITORIES */
+
+Entity Scene_Entities[MAX_SCENE_ENTITIES];
+
+
 
 
 /* ENTRY POINT */
 
 void main() {
+    vec3 finalPixelcolor = vec3(0.0);
 
-    vec3 color = vec3(0.0);
+    /* Declaring geometries */
+    Entity mySphere = Entity(GeometrySphere, vec3(0.0, 1.0, 1.0), 0.8);
 
-    float margin = default_margin;
+    /* Adding geometries to scene */
+    Scene_Entities[0] = mySphere;
 
-    if( u_isMouseOver == 1 ) {
-        margin = 100.0;
-    }
+    /* Render */
+    float screenX = gl_FragCoord.x;
+    float screenY = gl_FragCoord.y;
 
-    if( 
-        gl_FragCoord.x > margin && gl_FragCoord.x < (u_resolution.x - margin) &&
-        gl_FragCoord.y > margin && gl_FragCoord.y < (u_resolution.y - margin)
-    ) {
+    finalPixelcolor = vec3(1.0, 0.0, 1.0);
 
-        color = vec3(0.5+0.5*sin(u_t), 0.5+0.5*cos(u_t), 1.0);
-    }
-
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(finalPixelcolor, 1.0);
 }
