@@ -60,9 +60,9 @@ var ShaderRenderer = function(settings) {
 	 * in the shader code before compiling it. 
 	 * It's a limitation of some GLSL implementations I believe but
 	 * I may be utterly wrong, I haven't tinkered with shaders for a
-	 * long time. And it was actually funny to use kind-of templating
+	 * long time. And it was actually fun to use kind of templating
 	 * tags in a GLSL source code. It's visible in shaders/fragment.glsl :
-	 * - @var(var_name) will replace the statement with a value from the next object :
+	 * - @macro(macro_name) will replace the statement with a value from the next object :
 	 */
 	this.custom_macro_vars = {
 		
@@ -70,9 +70,6 @@ var ShaderRenderer = function(settings) {
 
 	/* Init/setup shader data as uniforms */
 	this.uniforms = {
-
-		/* Aspect / Screen resolution */
-	    u_resolution: { type: 'vec2', value: {x: this.width, y: this.height}},
 
 	    /* Timer */
 	    u_t: { type: 'f', value: 0},
@@ -99,6 +96,14 @@ var ShaderRenderer = function(settings) {
 
 
 	/* "Methods" */
+
+	this.registerDefaultMacros = function() {
+		this.registerMacro('SET_SCREEN_WIDTH',  'float SCREEN_WIDTH = ' + this.width.toFixed(1) + ';' );
+		this.registerMacro('SET_SCREEN_HEIGHT', 'float SCREEN_HEIGHT = ' + this.height.toFixed(1) + ';' );
+		this.registerMacro('SET_SCREEN_WIDTH_2',  'float SCREEN_WIDTH_2 = ' + (this.width / 2.0).toFixed(1) + ';' );
+		this.registerMacro('SET_SCREEN_HEIGHT_2', 'float SCREEN_HEIGHT_2 = ' + (this.height / 2.0).toFixed(1) + ';' );
+		
+	}
 
 	this.loadFile = function(file_path, done_callback) {
 		$.get(file_path+'?v='+this.last_update, function(response) {
@@ -163,8 +168,9 @@ var ShaderRenderer = function(settings) {
 	}
 
 	this.compile = function() {
-		var that = this;
+		this.registerDefaultMacros();
 
+		var that = this;
 		this.loadFile(this.fragment_shader_file, function(fragment_data) {
 			that.parseShader(fragment_data, function(parsed_fragment) {
 				that.shaderMaterial.fragmentShader = parsed_fragment;
@@ -188,11 +194,11 @@ var ShaderRenderer = function(settings) {
 
 		this.compile();
 		
-		if( stepCallback !== false ) {
+		if( stepCallback ) {
 			function step() {
 				that.shaderMaterial.uniforms.u_t.value += 0.01;
 
-				if( that.stepFrameCallback ) {
+				if( typeof that.stepFrameCallback == 'function' ) {
 					that.stepFrameCallback();
 				}
 
