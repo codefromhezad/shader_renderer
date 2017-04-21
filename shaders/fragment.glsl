@@ -76,7 +76,6 @@ Intersection intersectSphere(Ray ray, Entity sphere) {
 
     intersect.intersected = 0;
 
-    float t0, t1;
     vec3 L = ray.position - sphere.position;
     float radiusSquared = sphere.radius * sphere.radius;
 
@@ -89,35 +88,42 @@ Intersection intersectSphere(Ray ray, Entity sphere) {
     float x0, x1;
 
     if(discr < EPSILON) {
+        /* Quadratic has no solution(s), break with "null" intersection */
         return intersect; 
+
     } else if(discr - EPSILON < 0.0 && discr + EPSILON > 0.0) {
+        /* Quadratic has exactly one solution (Quite improbable) */
         x0 = x1 = - 0.5 * b / a; 
+
     } else { 
+        /* Quadratic has 2 solutions */
         float q = (b > 0.0) ? 
             -0.5 * (b + sqrt(discr)) : 
             -0.5 * (b - sqrt(discr)); 
         x0 = q / a; 
         x1 = c / q; 
     } 
-
-    /* Quadratic has solution(s), continue */
+    
+    /* Swap quadratic solutions if x0 is > to x1 to keep only the closest intersection */
     if(x0 > x1) {
         float tmpX0 = x0;
         x0 = x1;
         x1 = tmpX0;
     }
 
-    if(t0 < EPSILON) { 
-        t0 = t1;
-        if(t0 < EPSILON) {
+    if(x0 < EPSILON) { 
+        x0 = x1;
+        if(x0 < EPSILON) {
+            /* If both solutions are < 0, intersection is behind the ray origin : return "null" intersection */
             return intersect; 
         }     
     }
 
+    /* We found an intersection, let's build the Intersection struct and return it */
     intersect.intersected = 1;
-    intersect.ray_t = t0;
+    intersect.ray_t = x0;
     intersect.entity = sphere;
-    intersect.position = ray.position + t0 * ray.direction;
+    intersect.position = ray.position + x0 * ray.direction;
 
     return intersect;
 }
