@@ -35,14 +35,13 @@
                 });
 
                 // Declaring macros (Values replaced as-is at compile time (like macros))
-                renderer.registerMacro('SCENE_NUM_ENTITIES', 50);
+                renderer.registerMacro('SCENE_MAX_NUM_ENTITIES', 50);
+                renderer.registerMacro('PATHTRACING_DEPTH', 50);
 
                 // Running the shader 
-                // > Loads the fragment file.
-                // > Parses macros.
-                // > Compiles the resulting shader
-                // > Renders the scene.
-                renderer.run(true);
+                console.log('Rendering ...');
+                renderer.run(false);
+                console.log('Done');
             });
         </script>
     </body>

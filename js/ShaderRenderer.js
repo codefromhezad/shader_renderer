@@ -28,7 +28,7 @@ var ShaderRenderer = function(settings) {
 
 		width: 400,
 		height: 400,
-		last_update: RELEASE_DATE
+		last_update: RELEASE_DATE,
 	}
 
 	this.config = extend({}, this.defaults, settings);
@@ -90,7 +90,6 @@ var ShaderRenderer = function(settings) {
 		this.shaderMaterial
 	);
 	this.scene.add(this.quad);
-
 
 
 
