@@ -8,8 +8,9 @@ uniform float   u_t;
 
 /* SHADER CONSTANTS / LOOP INDICES */
 
-#define MAX_SCENE_ENTITIES @macro(MAX_SCENE_ENTITIES)
+#define SCENE_NUM_ENTITIES @macro(SCENE_NUM_ENTITIES)
 #define EPSILON 0.00000001
+#define INF 9999999.0
 
 
 
@@ -54,6 +55,7 @@ struct Entity {
 struct Intersection {
     int intersected;
     vec3 position;
+    vec3 normal;
     float ray_t;
 
     Entity entity;
@@ -64,7 +66,7 @@ struct Intersection {
 
 /* SCENE DATA REPOSITORIES */
 
-Entity Scene_Entities[MAX_SCENE_ENTITIES];
+Entity Scene_Entities[SCENE_NUM_ENTITIES];
 
 
 
@@ -125,8 +127,31 @@ Intersection intersectSphere(Ray ray, Entity sphere) {
     intersect.entity = sphere;
     intersect.position = ray.position + x0 * ray.direction;
 
+    /* Calculate normal vector of intersection */
+    intersect.normal = normalize(intersect.position - sphere.position);
+
     return intersect;
 }
+
+
+
+/* PATH TRACING FUNCTIONS */
+// vec3 color(vec3 from, vec3 dir) {
+//   vec3 hit = vec3(0.0);
+//   vec3 hitNormal = vec3(0.0);
+    
+//   vec3 luminance = vec3(1.0);
+//   for (int i=0; i < RayDepth; i++) {
+//     if (trace(from,dir,hit,hitNormal)) {
+//        dir = getSample(hitNormal); // new direction (towards light)
+//        luminance *= getColor()*2.0*Albedo*dot(dir,hitNormal);
+//        from = hit + hitNormal*minDist*2.0; // new start point
+//     } else {
+//        return luminance * getBackground( dir );
+//     }
+//   }
+//   return vec3(0.0); // Ray never reached a light source
+// }
 
 
 
@@ -134,7 +159,11 @@ Intersection intersectSphere(Ray ray, Entity sphere) {
 /* SCENE FUNCTIONS */
 
 Intersection castRay(Ray ray) {
-    for(int i = 0; i < MAX_SCENE_ENTITIES; i++) {
+    Intersection finalIntersection;
+    finalIntersection.intersected = 0;
+    float closest_t = INF;
+
+    for(int i = 0; i < SCENE_NUM_ENTITIES; i++) {
         Intersection intersect;
         Entity entity = Scene_Entities[i];
 
@@ -142,8 +171,13 @@ Intersection castRay(Ray ray) {
             intersect = intersectSphere(ray, entity);
         } // else if ...
 
-        return intersect;
+        if( intersect.intersected == 1 && intersect.ray_t < closest_t ) {
+            finalIntersection = intersect;
+            closest_t = intersect.ray_t;
+        }
     }
+
+    return finalIntersection;
 }
 
 
@@ -153,28 +187,37 @@ void main() {
     vec3 finalPixelcolor = vec3(0.0);
 
     /* Declaring geometries */
-    Entity mySphere;
-    mySphere.geometry = GeometrySphere;
-    mySphere.position = vec3(0.0, 1.0, 5.0);
-    mySphere.radius = 0.2;
+    Entity sphere1;
+    sphere1.geometry = GeometrySphere;
+    sphere1.position = vec3(1.0, 0.0, 2.0);
+    sphere1.radius = 0.8;
+
+    Entity sphere2;
+    sphere2.geometry = GeometrySphere;
+    sphere2.position = vec3(-1.0, 0.0, 2.0);
+    sphere2.radius = 0.8;
 
     /* Adding geometries to scene */
-    Scene_Entities[0] = mySphere;
+    Scene_Entities[0] = sphere1;
+    Scene_Entities[1] = sphere2;
 
     /* Build Source Ray */
     float screenX = (gl_FragCoord.x - SCREEN_WIDTH_2) / SCREEN_WIDTH;
     float screenY = (gl_FragCoord.y - SCREEN_HEIGHT_2) / SCREEN_HEIGHT;
 
     Ray sourceRay;
-    sourceRay.position  = vec3(screenX, screenY + 1.0, -5.0);
-    sourceRay.direction =  vec3(0.0, 0.0, 1.0);
+    // sourceRay.position  = vec3(screenX, screenY + 1.0, -5.0);
+    // sourceRay.direction =  vec3(0.0, 0.0, 1.0);
+
+    sourceRay.position = vec3(0.0, 0.0, -5.0);
+    sourceRay.direction = normalize(vec3(screenX, screenY, 1.0));
 
     /* Get intersection (or not) */
     Intersection sourceIntersection = castRay(sourceRay);
 
     /* Set final pixel color to draw */
     if( sourceIntersection.intersected == 1 ) {
-        finalPixelcolor = vec3(0.0, 0.0, 1.0);
+        finalPixelcolor = abs(sourceIntersection.normal);
     } else {
         finalPixelcolor = vec3(0.2, 0.2, 0.2);
     }
