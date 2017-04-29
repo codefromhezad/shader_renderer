@@ -28,20 +28,23 @@
                 // Starting the renderer
                 window.renderer = new ShaderRenderer({
                     canvas_id: 'main-screen', 
+                    fragment_shader_file: "shaders/fragment.glsl",
+
                     width: 600, 
                     height: 600,
-                    fragment_shader_file: "shaders/fragment.glsl",
-                    last_update: "20170421"
+                    last_update: "20170429",
+
+                    log_level: LOG.VERBOSE
                 });
 
                 // Declaring macros (Values replaced as-is at compile time (like macros))
                 renderer.registerMacro('SCENE_MAX_NUM_ENTITIES', 50);
                 renderer.registerMacro('PATHTRACING_DEPTH', 50);
 
+                renderer.registerUniform('test', 'f', 0.6);
+                
                 // Running the shader 
-                console.log('Rendering ...');
                 renderer.run(false);
-                console.log('Done');
             });
         </script>
     </body>

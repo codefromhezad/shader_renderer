@@ -1,7 +1,4 @@
 
-var RELEASE_DATE = "20170309";
-var MAX_PARSING_RECURSIONS = 50;
-
 /*
  * Recursively merge properties of two objects 
  * Source: http://stackoverflow.com/questions/11197247/javascript-equivalent-of-jquerys-extend-method
@@ -17,9 +14,55 @@ function extend(){
     return arguments[0];
 }
 
+
+/* Generate unique hash from string
+ * Source: http://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript-jquery
+ * Usage example:
+ * 		var hash = original_str.to_hash();
+ */
+String.prototype.to_hash = function() {
+	var hash = 0, i, chr;
+	if (this.length === 0) return hash;
+	for (i = 0; i < this.length; i++) {
+		chr   = this.charCodeAt(i);
+    	hash  = ((hash << 5) - hash) + chr;
+    	hash |= 0; // Convert to 32bit integer
+	}
+  	return hash;
+};
+
+
+
+/*
+ * Generate a hax color code procedurally from any string
+ * Return format: #<hexcode>
+ * Usage example:
+ * 		"My string".to_hex_color()
+ */
+String.prototype.to_hex_color = function() {
+	var hash = this.to_hash();
+
+	var c = (hash & 0x00FFFFFF)
+        .toString(16)
+        .toUpperCase();
+
+    return "00000".substring(0, 6 - c.length) + c;
+}
+
+
+var LOG = {
+	ERROR: 	 	   0,  // 0 = No logs excepted fatal errors
+	VERBOSE: 	   1,  // 3 = Verbose logs (Logs everything but try to avoid writing to console on frame updates)
+};
+
+
 var ShaderRenderer = function(settings) {
 
 	// Renderer's "Constructor"
+	var theRenderer = this;
+
+	/* Constants */
+	this.MAX_PARSING_RECURSIONS = 50;
 
 	/* Defaults */
 	this.defaults = {
@@ -28,7 +71,10 @@ var ShaderRenderer = function(settings) {
 
 		width: 400,
 		height: 400,
-		last_update: RELEASE_DATE,
+		last_update: "20170309", // Default date is when last_update setting was introduced
+
+		log_level: LOG.ERROR,
+		log_indent: '    ',
 	}
 
 	this.config = extend({}, this.defaults, settings);
@@ -96,20 +142,59 @@ var ShaderRenderer = function(settings) {
 
 	/* "Methods" */
 
+	this.log = function(log_level, message, category, indentLevel) {
+
+		if( this.config.log_level < log_level ) {
+			return;
+		}
+
+		var css_args = ['', ''];
+
+		if( category ) {
+			message = '%c['+category+']%c ' + message;
+			css_args[0] = 'font-weight: bold; text-transform: uppercase; color: #'+category.to_hex_color()+';';
+		}
+
+		if( indentLevel ) {
+			message = Array(indentLevel + 1).join(this.config.log_indent) + '' + message;
+		}
+
+		var log_args = [message, css_args[0], css_args[1]];
+
+		switch( log_level ) {
+			case LOG.ERROR:   console.error.apply(console, log_args); break;
+			case LOG.WARN: 	  console.warn.apply(console, log_args); break;
+			case LOG.INFO: 	  console.info.apply(console, log_args); break;
+			case LOG.VERBOSE: console.log.apply(console, log_args); break;
+		}
+	}
+
+	this.log_registered_data = function() {
+		theRenderer.log(LOG.VERBOSE, '', 'Registered data');
+
+		theRenderer.log(LOG.VERBOSE, '('+Object.keys(this.custom_macro_vars).length+')', 'Macros', 1);
+		for(var m_name in this.custom_macro_vars) {
+			theRenderer.log(LOG.VERBOSE, m_name + ' = "' + this.custom_macro_vars[m_name] + '"', null, 2);
+		}
+
+		theRenderer.log(LOG.VERBOSE, '('+Object.keys(this.uniforms).length+')', "Uniforms", 1);
+		for(var u_name in this.uniforms) {
+			theRenderer.log(LOG.VERBOSE, '<'+this.uniforms[u_name].type+'> ' + u_name + ' = '+this.uniforms[u_name].value, null, 2 );
+		}
+	}
+
 	this.registerDefaultMacros = function() {
 		this.registerMacro('SET_SCREEN_WIDTH',  'float SCREEN_WIDTH = ' + this.width.toFixed(1) + ';' );
 		this.registerMacro('SET_SCREEN_HEIGHT', 'float SCREEN_HEIGHT = ' + this.height.toFixed(1) + ';' );
 		this.registerMacro('SET_SCREEN_WIDTH_2',  'float SCREEN_WIDTH_2 = ' + (this.width / 2.0).toFixed(1) + ';' );
 		this.registerMacro('SET_SCREEN_HEIGHT_2', 'float SCREEN_HEIGHT_2 = ' + (this.height / 2.0).toFixed(1) + ';' );
-		
 	}
 
 	this.loadFile = function(file_path, done_callback) {
 		$.get(file_path+'?v='+this.last_update, function(response) {
 			done_callback(response);
 		}).fail( function(response) {
-			console.error("Can't load '" + file_path + "': "+
-				"A " + response.status + " error was returned by the server");
+			theRenderer.log(LOG.ERROR, "Can't load '" + file_path + "': A " + response.status + " error was returned by the server", "File", 1);
 		});
 	}
 
@@ -131,8 +216,8 @@ var ShaderRenderer = function(settings) {
 			recursion_level = 0;
 		}
 
-		if( recursion_level >= MAX_PARSING_RECURSIONS ) {
-			console.error("Too much recursion while parsing the shader code. Please check for syntax errors");
+		if( recursion_level >= this.MAX_PARSING_RECURSIONS ) {
+			theRenderer.log(LOG.ERROR, "Too much recursion while parsing the shader code. Please check for syntax errors", "PARSING");
 			return;
 		}
 
@@ -144,7 +229,7 @@ var ShaderRenderer = function(settings) {
 			var directive_index = macro_match.index;
 
 			if( this.custom_macro_vars[directive_var_name] === undefined ) {
-				console.error('Shader file is using an unregistered template variable ('+directive_var_name+')');
+				theRenderer.log(LOG.ERROR, 'Shader file is using an unregistered template variable ('+directive_var_name+')', "PARSING");
 				return;
 			}
 			
@@ -167,15 +252,31 @@ var ShaderRenderer = function(settings) {
 	}
 
 	this.compile = function() {
+		var start_date = Date.now();
+
 		this.registerDefaultMacros();
 
-		var that = this;
-		this.loadFile(this.fragment_shader_file, function(fragment_data) {
-			that.parseShader(fragment_data, function(parsed_fragment) {
-				that.shaderMaterial.fragmentShader = parsed_fragment;
-				that.shaderMaterial.needsUpdate = true;
+		theRenderer.log_registered_data();
 
-				that.renderer.render(that.scene, that.camera);
+		theRenderer.log(LOG.VERBOSE, '', 'Compiling');
+		theRenderer.log(LOG.VERBOSE, 'Loading fragment shader (' + theRenderer.fragment_shader_file + ')', null, 1);
+
+		this.loadFile(this.fragment_shader_file, function(fragment_data) {
+
+			theRenderer.log(LOG.VERBOSE, '> Done.', null, 2);
+			theRenderer.log(LOG.VERBOSE, 'Parsing fragment shader (' + theRenderer.fragment_shader_file + ')', null, 1);
+
+			theRenderer.parseShader(fragment_data, function(parsed_fragment) {
+				
+				theRenderer.log(LOG.VERBOSE, '> Done.', null, 2);
+
+				theRenderer.shaderMaterial.fragmentShader = parsed_fragment;
+				theRenderer.shaderMaterial.needsUpdate = true;
+
+				theRenderer.renderer.render(theRenderer.scene, theRenderer.camera);
+
+				theRenderer.log(LOG.VERBOSE, '', 'Rendering');
+				theRenderer.log(LOG.VERBOSE, 'Render finished in '+parseInt( (Date.now() - start_date ) / 1000 ) +' seconds', null, 1);
 			});
 		});
 	}
@@ -192,7 +293,7 @@ var ShaderRenderer = function(settings) {
 		var that = this;
 
 		this.compile();
-		
+
 		if( stepCallback ) {
 			function step() {
 				that.shaderMaterial.uniforms.u_t.value += 0.01;

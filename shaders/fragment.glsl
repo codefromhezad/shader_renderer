@@ -114,7 +114,7 @@ vec2 rand2n() {
         seed = getViewCoord() * (u_t + 1.0);
         seedInitialized = 1;
     } else {
-        seed += vec2(-1,1);
+        seed += vec2(-1.0,1.0);
     }
 
     // implementation based on: lumina.sourceforge.net/Tutorials/Noise.html
