@@ -10,7 +10,7 @@ uniform float   u_t;
 
 #define SCENE_MAX_NUM_ENTITIES @macro(SCENE_MAX_NUM_ENTITIES)
 #define PATHTRACING_DEPTH @macro(PATHTRACING_DEPTH)
-#define EPSILON 0.00000001
+#define EPSILON 0.000000001
 #define INF 9999999.0
 #define PI 3.1415926535
 
@@ -172,11 +172,11 @@ Intersection intersectSphere(Ray ray, Entity sphere) {
     float discr = b * b - 4.0 * a * c; 
     float x0, x1;
 
-    if(discr < EPSILON) {
+    if(discr < 0.0) {
         /* Quadratic has no solution(s), break with "null" intersection */
         return intersect; 
 
-    } else if(discr - EPSILON < 0.0 && discr + EPSILON > 0.0) {
+    } else if( (discr < EPSILON) && (discr > - EPSILON) ) {
         /* Quadratic has exactly one solution (Quite improbable) */
         x0 = x1 = - 0.5 * b / a; 
 

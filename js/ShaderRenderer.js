@@ -15,44 +15,9 @@ function extend(){
 }
 
 
-/* Generate unique hash from string
- * Source: http://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript-jquery
- * Usage example:
- * 		var hash = original_str.to_hash();
- */
-String.prototype.to_hash = function() {
-	var hash = 0, i, chr;
-	if (this.length === 0) return hash;
-	for (i = 0; i < this.length; i++) {
-		chr   = this.charCodeAt(i);
-    	hash  = ((hash << 5) - hash) + chr;
-    	hash |= 0; // Convert to 32bit integer
-	}
-  	return hash;
-};
-
-
-
-/*
- * Generate a hax color code procedurally from any string
- * Return format: #<hexcode>
- * Usage example:
- * 		"My string".to_hex_color()
- */
-String.prototype.to_hex_color = function() {
-	var hash = this.to_hash();
-
-	var c = (hash & 0x00FFFFFF)
-        .toString(16)
-        .toUpperCase();
-
-    return "00000".substring(0, 6 - c.length) + c;
-}
-
-
 var LOG = {
 	ERROR: 	 	   0,  // 0 = No logs excepted fatal errors
-	VERBOSE: 	   1,  // 3 = Verbose logs (Logs everything but try to avoid writing to console on frame updates)
+	VERBOSE: 	   1,  // 1 = Verbose logs (Logs everything but try to avoid writing to console on frame updates)
 };
 
 
@@ -74,7 +39,6 @@ var ShaderRenderer = function(settings) {
 		last_update: "20170309", // Default date is when last_update setting was introduced
 
 		log_level: LOG.ERROR,
-		log_indent: '    ',
 	}
 
 	this.config = extend({}, this.defaults, settings);
@@ -137,49 +101,75 @@ var ShaderRenderer = function(settings) {
 	);
 	this.scene.add(this.quad);
 
-
+	/* Creates HTML element used to log stuff and apply basic style to it */
+	this.$log_container = $('<div id="shader-renderer-log-container"></div>');
+	this.$log_container.css({
+		position: 'absolute',
+		top: 0,
+		right: 0,
+		height: '100%',
+		width: '40%',
+		background: '#eaeaea',
+		padding: '20px',
+		boxSizing: 'border-box',
+		overflowY: 'scroll',
+		fontSize: '14px'
+	});
+	this.$log_container.appendTo('body');
 
 
 	/* "Methods" */
 
-	this.log = function(log_level, message, category, indentLevel) {
+	this.log = function(log_level, message, category, indentLevel, wait_reference) {
 
 		if( this.config.log_level < log_level ) {
 			return;
 		}
 
-		var css_args = ['', ''];
+		var log_category_span_style = '';
+		var log_category_string = '';
+		var pre_style = 'margin: 0;line-height: 20px;white-space: pre-wrap;';
+		var indent_pipe_spans = '';
+		var log_line_style = 'padding-left: 5px;';
 
 		if( category ) {
-			message = '%c['+category+']%c ' + message;
-			css_args[0] = 'font-weight: bold; text-transform: uppercase; color: #'+category.to_hex_color()+';';
+			log_category_span_style = 'font-weight: bold; text-transform: uppercase; color: #001b97;';
+			log_category_string = '['+category+']';
 		}
 
 		if( indentLevel ) {
-			message = Array(indentLevel + 1).join(this.config.log_indent) + '' + message;
+			for(var i = 0; i < indentLevel; i++) {
+				indent_pipe_spans += '<span style="color: #001b97;">  </span>';
+			}
 		}
 
-		var log_args = [message, css_args[0], css_args[1]];
-
-		switch( log_level ) {
-			case LOG.ERROR:   console.error.apply(console, log_args); break;
-			case LOG.WARN: 	  console.warn.apply(console, log_args); break;
-			case LOG.INFO: 	  console.info.apply(console, log_args); break;
-			case LOG.VERBOSE: console.log.apply(console, log_args); break;
+		if(log_level == LOG.ERROR) {
+			log_line_style += "color: #f00;";
 		}
+
+		this.$log_container.append(
+			'<pre style="'+pre_style+'">'+
+				indent_pipe_spans +
+				'<span style="'+log_category_span_style+'">'+log_category_string+'</span>'+
+				'<span style="'+log_line_style+'">'+message+'</span>'+
+				(wait_reference ? '<span class="wait-'+wait_reference+'"> ...</span>' : '') + 
+			'</pre>'
+		);
+	}
+
+	this.log_response = function(wait_reference, message) {
+		$('#shader-renderer-log-container').find('span.wait-'+wait_reference).html(' ... ' + message);
 	}
 
 	this.log_registered_data = function() {
-		theRenderer.log(LOG.VERBOSE, '', 'Registered data');
-
-		theRenderer.log(LOG.VERBOSE, '('+Object.keys(this.custom_macro_vars).length+')', 'Macros', 1);
+		theRenderer.log(LOG.VERBOSE, '('+Object.keys(this.custom_macro_vars).length+')', 'Registered macros', 0);
 		for(var m_name in this.custom_macro_vars) {
-			theRenderer.log(LOG.VERBOSE, m_name + ' = "' + this.custom_macro_vars[m_name] + '"', null, 2);
+			theRenderer.log(LOG.VERBOSE, m_name + ' = "' + this.custom_macro_vars[m_name] + '"', null, 1);
 		}
 
-		theRenderer.log(LOG.VERBOSE, '('+Object.keys(this.uniforms).length+')', "Uniforms", 1);
+		theRenderer.log(LOG.VERBOSE, '('+Object.keys(this.uniforms).length+')', "Registered uniforms", 0);
 		for(var u_name in this.uniforms) {
-			theRenderer.log(LOG.VERBOSE, '<'+this.uniforms[u_name].type+'> ' + u_name + ' = '+this.uniforms[u_name].value, null, 2 );
+			theRenderer.log(LOG.VERBOSE, '<em>('+this.uniforms[u_name].type+'</em>) ' + u_name + ' = '+this.uniforms[u_name].value, null, 1);
 		}
 	}
 
@@ -194,7 +184,7 @@ var ShaderRenderer = function(settings) {
 		$.get(file_path+'?v='+this.last_update, function(response) {
 			done_callback(response);
 		}).fail( function(response) {
-			theRenderer.log(LOG.ERROR, "Can't load '" + file_path + "': A " + response.status + " error was returned by the server", "File", 1);
+			theRenderer.log(LOG.ERROR, "Can't load '" + file_path + "': A " + response.status + " error was returned by the server", null, 1);
 		});
 	}
 
@@ -217,7 +207,7 @@ var ShaderRenderer = function(settings) {
 		}
 
 		if( recursion_level >= this.MAX_PARSING_RECURSIONS ) {
-			theRenderer.log(LOG.ERROR, "Too much recursion while parsing the shader code. Please check for syntax errors", "PARSING");
+			theRenderer.log(LOG.ERROR, "Too much recursion while parsing the shader code. Please check for syntax errors");
 			return;
 		}
 
@@ -229,7 +219,7 @@ var ShaderRenderer = function(settings) {
 			var directive_index = macro_match.index;
 
 			if( this.custom_macro_vars[directive_var_name] === undefined ) {
-				theRenderer.log(LOG.ERROR, 'Shader file is using an unregistered template variable ('+directive_var_name+')', "PARSING");
+				theRenderer.log(LOG.ERROR, 'Shader file is using an unregistered template variable ('+directive_var_name+')');
 				return;
 			}
 			
@@ -259,16 +249,16 @@ var ShaderRenderer = function(settings) {
 		theRenderer.log_registered_data();
 
 		theRenderer.log(LOG.VERBOSE, '', 'Compiling');
-		theRenderer.log(LOG.VERBOSE, 'Loading fragment shader (' + theRenderer.fragment_shader_file + ')', null, 1);
+		theRenderer.log(LOG.VERBOSE, 'Loading fragment shader (' + theRenderer.fragment_shader_file + ')', null, 1, 'load_fragment');
 
 		this.loadFile(this.fragment_shader_file, function(fragment_data) {
 
-			theRenderer.log(LOG.VERBOSE, '> Done.', null, 2);
-			theRenderer.log(LOG.VERBOSE, 'Parsing fragment shader (' + theRenderer.fragment_shader_file + ')', null, 1);
+			theRenderer.log_response('load_fragment', 'Done');
+			theRenderer.log(LOG.VERBOSE, 'Parsing fragment shader (' + theRenderer.fragment_shader_file + ')', null, 1, 'parse_fragment');
 
 			theRenderer.parseShader(fragment_data, function(parsed_fragment) {
 				
-				theRenderer.log(LOG.VERBOSE, '> Done.', null, 2);
+				theRenderer.log_response('parse_fragment', 'Done');
 
 				theRenderer.shaderMaterial.fragmentShader = parsed_fragment;
 				theRenderer.shaderMaterial.needsUpdate = true;
