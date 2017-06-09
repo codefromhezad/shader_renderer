@@ -55,7 +55,6 @@ struct Material {
 
     /* General parameters */
     vec3 color;
-    float albedo;
 };
 
 struct Entity {
@@ -105,55 +104,6 @@ vec2 getViewCoord() {
 
 
 
-/* GENERAL VECTOR/MATH FUNCTIONS */
-vec2 seed;
-int seedInitialized = 0;
- 
-vec2 rand2n() {
-    if( seedInitialized == 0 ) {
-        seed = getViewCoord() * (u_t + 1.0);
-        seedInitialized = 1;
-    } else {
-        seed += vec2(-1.0,1.0);
-    }
-
-    // implementation based on: lumina.sourceforge.net/Tutorials/Noise.html
-    return vec2(
-        fract(sin(dot(seed.xy, vec2(12.9898, 78.233))) * 43758.5453),
-        fract(cos(dot(seed.xy, vec2(4.898, 7.23))) * 23421.631)
-    );
-}
- 
-vec3 ortho(vec3 v) {
-    //  See : http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts
-    return abs(v.x) > abs(v.z) ? vec3(-v.y, v.x, 0.0)  : vec3(0.0, -v.z, v.y);
-}
- 
-vec3 getSampleBiased(vec3 dir, float power) {
-    dir = normalize(dir);
-    vec3 o1 = normalize(ortho(dir));
-    vec3 o2 = normalize(cross(dir, o1));
-    vec2 r = rand2n();
-
-    r.x = r.x * 2.0 * PI;
-    r.y = pow(r.y, 1.0 / (power+1.0) );
-
-    float oneminus = sqrt(1.0 - r.y * r.y);
-
-    return cos(r.x) * oneminus * o1 + sin(r.x) * oneminus * o2 + r.y * dir;
-}
- 
-vec3 getHemisphereSample(vec3 dir) {
-    return getSampleBiased(dir, 0.0); // <- unbiased!
-}
- 
-vec3 getCosineWeightedHemisphereSample(vec3 dir) {
-    return getSampleBiased(dir, 1.0);
-}
-
-
-
-
 /* GEOMETRIES INTERSECTIONS */
 
 Intersection intersectSphere(Ray ray, Entity sphere) {
@@ -172,17 +122,17 @@ Intersection intersectSphere(Ray ray, Entity sphere) {
     float discr = b * b - 4.0 * a * c; 
     float x0, x1;
 
-    if(discr < 0.0) {
-        /* Quadratic has no solution(s), break with "null" intersection */
-        return intersect; 
-
-    } else if( (discr < EPSILON) && (discr > - EPSILON) ) {
+    if( (discr < EPSILON) && (discr > - EPSILON) ) {
         /* Quadratic has exactly one solution (Quite improbable) */
         x0 = x1 = - 0.5 * b / a; 
 
+    } else if(discr < EPSILON) {
+        /* Quadratic has no solution(s), break with "null" intersection */
+        return intersect; 
+
     } else { 
         /* Quadratic has 2 solutions */
-        float q = (b > 0.0) ? 
+        float q = (b > EPSILON) ? 
             -0.5 * (b + sqrt(discr)) : 
             -0.5 * (b - sqrt(discr)); 
         x0 = q / a; 
@@ -249,49 +199,26 @@ Intersection castRay(Ray ray) {
 /* ILLUMINATION FUNCTIONS */
 
 vec3 getIntersectionColor(Intersection intersection) {
-    if( intersection.intersected != 1 ) {
-        return vec3(0.0);
-    }
-
     if(intersection.entity.material.type == MaterialTypePlain) {
         return intersection.entity.material.color;
     } // else if ... @TODO: Other material types
 
+    // Unkown Material. Return pure black.
     return vec3(0.0);
 }
 
 vec3 getBackgroundColor(vec3 direction) {
-    return vec3(0.9);
+    return vec3(0.2);
 }
 
 vec3 traceColor(Ray ray) {
-    vec3 from = ray.position;
-    vec3 dir  = ray.direction;
+    Intersection intersect = castRay(ray);
 
-    vec3 hit       = vec3(0.0);
-    vec3 hitNormal = vec3(0.0);
-    vec3 luminance = vec3(1.0);
-    float albedo   = 0.9;
-
-    for (int i=0; i < PATHTRACING_DEPTH; i++) {
-
-        Intersection intersect = castRay( Ray(from, dir) );
-
-        if( intersect.intersected == 1 ) {
-            hit        = intersect.position;
-            hitNormal  = intersect.normal;
-            dir        = getHemisphereSample(hitNormal);
-            //albedo     = intersect.entity.material.albedo;   @TODO : Fix albedo retrieving from material. Probably a problem with material assignment
-
-            luminance *= getIntersectionColor(intersect) * 2.0 * albedo * dot(dir, hitNormal);
-
-            from = hit + hitNormal * EPSILON * 2.0;
-        } else {
-            return luminance * getBackgroundColor( dir );
-        }
+    if( intersect.intersected == 1 ) {
+        return getIntersectionColor(intersect);
+    } else {
+        return getBackgroundColor(ray.direction);
     }
-
-    return vec3(0.0); // Ray never reached a light source
 }
 
 
@@ -305,25 +232,31 @@ void main() {
     /* Declaring materials */
     Material spheres_material;
     spheres_material.type  = MaterialTypePlain;
-    spheres_material.color = vec3(0.75, 0.75, 0.75);
-    spheres_material.albedo = 0.7;
+    spheres_material.color = vec3(0.85, 0.55, 0.55);
 
     /* Declaring geometries */
     Entity sphere1;
     sphere1.geometry = GeometrySphere;
     sphere1.material = spheres_material;
-    sphere1.position = vec3(1.0, 0.0, 2.0);
+    sphere1.position = vec3(1.0, 1.5, 3.0);
     sphere1.radius = 0.8;
 
     Entity sphere2;
     sphere2.geometry = GeometrySphere;
     sphere2.material = spheres_material;
-    sphere2.position = vec3(-1.0, 0.0, 2.0);
+    sphere2.position = vec3(-1.0, 0.0, 5.0);
     sphere2.radius = 0.8;
+
+    Entity sphere3;
+    sphere3.geometry = GeometrySphere;
+    sphere3.material = spheres_material;
+    sphere3.position = vec3(1.0, -1.5, 0.0);
+    sphere3.radius = 0.8;
 
     /* Adding geometries to scene */
     Scene_Entities[0] = sphere1;
     Scene_Entities[1] = sphere2;
+    Scene_Entities[2] = sphere3;
 
     /* Build Source Ray */
     vec2 viewCoord = getViewCoord();
